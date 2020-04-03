@@ -12,7 +12,7 @@ function InstallRequirements {
     cd "${_directory}"
       python3 -m virtualenv env
       ./env/bin/python3 -m pip install --upgrade pip
-      ./env/bin/python3 -m pip install -f ./requirements.txt
+      ./env/bin/python3 -m pip install -r ./requirements.txt
     cd -
   done
 }
