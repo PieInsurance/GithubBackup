@@ -7,6 +7,12 @@ from git import Repo
 from ZipFile import zipfile
 from datetime import date
 
+"""
+This python3 lambda does 2 things:
+  1. backs up the github repository to codecommit
+  2. backs up the github repository to s3
+"""
+
 def _get_or_create_codecommit(key, secret, repo):
   client = boto3.client(
     'codecommit',

@@ -4,7 +4,7 @@ __DEFAULT_SEMVER__="0.0.0"
 SEMVER="${1:-${__DEFAULT_SEMVER__}}"
 USERNAME="${2}"
 PASSWORD="${3}"
-URL="${4}/document"
+URL="${4}/github-backup"
 
 FILENAME="deployment.${SEMVER%+*}.zip"
 

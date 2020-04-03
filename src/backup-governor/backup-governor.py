@@ -3,6 +3,19 @@
 import boto3
 from github import Github
 
+"""
+This python3 lambda will invoke 1 lambda per repo in PieInsurance Github Organization
+
+Expected Input:
+{
+  "GithubToken": <token>,
+  "AWSAccessId": <key>,
+  "AWSSecretKey": <secret>,
+  "S3Bucket": <bucket>,
+  "InvocationType": <'DryRun', 'Event'>
+}
+"""
+
 def _get_repos(token, ):
   g = Github(token)
   org = g.get_organization("PieInsurance")
@@ -34,4 +47,4 @@ def handle(event, context):
   repositories = _get_repos(event['GithubToken'])
   for repository in repositories:
     payload = _create_payload(event['GithubToken'], event['AWSAccessId'], event['AWSSecretKey'], event['S3Bucket'], repository.name)
-    response[repository.name] = _invoke_lambda(_payload, 'Event')
+    response[repository.name] = _invoke_lambda(_payload, event['InvocationType'])
