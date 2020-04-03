@@ -35,6 +35,7 @@ pipeline {
           sh '''
             SEMVER=$(cat "./${SEMVER_FILE}")
             sleep 0.5
+            ./ci/build.sh
           '''
         }
       }
@@ -56,6 +57,8 @@ pipeline {
         withCredentials([usernamePassword(credentialsId: 'binary.write', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
           sh '''
             SEMVER=$(cat "./${SEMVER_FILE}")
+            sleep 0.5
+            ./ci/publish_lambdas.sh ${SEMVER} ${NEXUS_USERNAME} ${NEXUS_PASSWORD} ${ARTIFACT_URL}
             sleep 0.5
             ./ci/publish_deployment.sh ${SEMVER} ${NEXUS_USERNAME} ${NEXUS_PASSWORD} ${ARTIFACT_URL}
           '''
