@@ -1,0 +1,108 @@
+pipeline {
+  agent {
+    ecs {
+      inheritFrom 'dotnet-3-1'
+    }
+  }
+
+  environment {
+    SEMVER_FILE="current.semver"
+
+    ARTIFACT_URL="https://artifacts.cicd.pieinsurance.com/repository/binary"
+    PROJECT_NAME="github-backup"
+    OCTOPUS_HOST="deploy.pieinsurance.com"
+  }
+
+  stages {
+    stage('setup') {
+      steps {
+        sh '''
+          git clean -dfx
+          sleep 0.5
+          ./ci/setup.sh ${CONFIGURATION} ${VERBOSITY}
+          sleep 0.5
+          ./ci/generate_semver.sh > "./${SEMVER_FILE}"
+        '''
+        script {
+          currentBuild.displayName = sh(returnStdout: true, script: 'cat ./${SEMVER_FILE}')
+        }
+      }
+    }
+
+    stage('build') {
+      steps {
+        withDockerRegistry([ credentialsId: "${REGISTRY_CREDENTIALS}", url: "https://${DOCKER_REGISTRY}" ]) {
+          sh '''
+            SEMVER=$(cat "./${SEMVER_FILE}")
+            sleep 0.5
+          '''
+        }
+      }
+    }
+
+    stage('test') {
+      steps {
+        sh '''
+          ./ci/test.sh ${CONFIGURATION} ${VERBOSITY}
+        '''
+      }
+    }
+
+    stage('publish') {
+      when {
+        expression { return env.CHANGE_ID == null }
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'binary.write', usernameVariable: 'NEXUS_USERNAME', passwordVariable: 'NEXUS_PASSWORD')]) {
+          sh '''
+            SEMVER=$(cat "./${SEMVER_FILE}")
+            sleep 0.5
+            ./ci/publish_deployment.sh ${SEMVER} ${NEXUS_USERNAME} ${NEXUS_PASSWORD} ${ARTIFACT_URL}
+          '''
+        }
+        withCredentials([string(credentialsId: 'OctopusAPIKey', variable: 'OCTOPUS_APIKEY')]) {
+          sh '''
+            SEMVER=$(cat "./${SEMVER_FILE}")
+            sleep 0.5
+            ./ci/create_release.sh ${OCTOPUS_APIKEY} ${SEMVER} ${PROJECT_NAME} ${OCTOPUS_HOST}
+          '''
+        }
+      }
+    }
+
+    stage('Tag Master Builds') {
+      when {
+        allOf {
+          anyOf {
+            expression { return env.BRANCH_NAME == '2.0/master' }
+            expression { return env.BRANCH_NAME == 'master' }
+          }
+          expression { return currentBuild.currentResult == "SUCCESS" }
+        }
+      }
+      steps {
+        withCredentials([usernamePassword(credentialsId: 'ca856214-9bab-4020-bd72-40e5354cd0df', passwordVariable: 'GIT_PASSWORD', usernameVariable: 'GIT_USERNAME')]) {
+          sh '''
+            SEMVER=$(cat "./${SEMVER_FILE}")
+            sleep 0.5
+            printenv
+            sleep 0.5
+            ./ci/publish_tag.sh ${SEMVER} ${BRANCH_NAME} ${GIT_URL} ${GIT_USERNAME} ${GIT_PASSWORD}
+          '''
+        }
+      }
+    }
+  }
+  post {
+    always {
+      sh '''
+        if [ -f ./${SEMVER_FILE} ]
+        then
+          SEMVER=$(cat "./${SEMVER_FILE}")
+          sleep 0.5
+          ./ci/cleanup.sh ${SEMVER} ${DOCKER_REGISTRY}
+        fi
+      '''
+    }
+  }
+}
